@@ -1,13 +1,18 @@
 package virus;
 
 public class GameModel {
+    public enum GameState {
+        INITIAL,
+        PLAYING,
+        FINISHED
+    }
+
     private final int[][] board = new int[3][3];
     private boolean isXTurn = true;
-    private boolean gameStarted = false;
-    private boolean gameEnded = false;
+    private GameState gameState = GameState.INITIAL;
 
     public boolean makeMove(int row, int col) {
-        if (!gameStarted || gameEnded || board[row][col] != 0) {
+        if (!isGameStarted() || board[row][col] != 0) {
             return false;
         }
 
@@ -15,15 +20,14 @@ public class GameModel {
         isXTurn = !isXTurn;
 
         if (checkWin() || checkDraw()) {
-            gameEnded = true;
+            gameState = GameState.FINISHED;
         }
 
         return true;
     }
 
     public void startGame() {
-        gameStarted = true;
-        gameEnded = false;
+        gameState = GameState.PLAYING;
     }
 
     public void reset() {
@@ -33,8 +37,7 @@ public class GameModel {
             }
         }
         isXTurn = true;
-        gameStarted = false;
-        gameEnded = false;
+        gameState = GameState.INITIAL;
     }
 
     private boolean checkWin() {
@@ -59,7 +62,8 @@ public class GameModel {
 
     public int getCellState(int row, int col) { return board[row][col]; }
     public boolean isXTurn() { return isXTurn; }
-    public boolean isGameStarted() { return gameStarted; }
-    public boolean isGameEnded() { return gameEnded; }
-    public boolean isDraw() { return gameEnded && !checkWin(); }
+    public boolean isDraw() { return isGameEnded() && !checkWin(); }
+    public boolean isGameIdle() { return gameState == GameState.INITIAL; }
+    public boolean isGameStarted() { return gameState == GameState.PLAYING; }
+    public boolean isGameEnded() { return gameState == GameState.FINISHED; }
 }

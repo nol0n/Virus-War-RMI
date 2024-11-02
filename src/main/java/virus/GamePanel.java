@@ -55,7 +55,7 @@ public class GamePanel extends JPanel {
     }
 
     private void handleControlButton() {
-        if (!model.isGameStarted()) {
+        if (model.isGameIdle()) {
             model.startGame();
             updateStatus();
         } else if (model.isGameEnded()) {
