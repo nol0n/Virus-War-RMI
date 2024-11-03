@@ -1,4 +1,4 @@
-package virus;
+package virus_game;
 
 import javax.swing.*;
 
