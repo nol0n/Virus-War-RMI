@@ -1,40 +1,30 @@
-package virus_game;
+package rmi.game;
 
-public class GameModel {
-    public enum GameState {
-        INITIAL,
-        PLAYING,
-        FINISHED
-    }
+import rmi.net.RemoteVirusGame;
+import java.rmi.RemoteException;
 
-    public enum CellState {
-        EMPTY,
-        X_ALIVE,
-        O_ALIVE,
-        X_DEAD,
-        O_DEAD
-    }
-
+public class ServerGameModel implements RemoteVirusGame {
     private static final int SIZE = 10;
     private final CellState[][] board = new CellState[SIZE][SIZE];
     private boolean isXTurn = true;
-    private GameState gameState = GameState.INITIAL;
+    private GameStatus status = GameStatus.WAITING_PLAYERS;
     private int remainingMoves = 3;
+    private String winner = null;
+
     private int xCount = 0;
     private int oCount = 0;
     private boolean xFirstMove = true;
     private boolean oFirstMove = true;
-    private boolean winner = true;
 
-    public GameModel() {
+    private int connectedPlayers = 0;
+    private boolean[] playerConnected = new boolean[2];
+    private boolean[] playerReady = new boolean[2];
+
+    public ServerGameModel() {
         reset();
     }
 
-    public void startGame() {
-        gameState = GameState.PLAYING;
-    }
-
-    public void reset() {
+    private void reset() {
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 board[i][j] = CellState.EMPTY;
@@ -42,15 +32,17 @@ public class GameModel {
         }
         isXTurn = true;
         remainingMoves = 3;
-        gameState = GameState.INITIAL;
+        status = GameStatus.WAITING_PLAYERS;
         oCount = 0;
         xCount = 0;
         xFirstMove = true;
         oFirstMove = true;
+        winner = null;
     }
 
-    public boolean makeMove(int row, int col) {
-        if (!isGameStarted()) {
+    @Override
+    public synchronized boolean makeMove(int playerId, int row, int col) throws RemoteException {
+        if (status != GameStatus.PLAYING || !isPlayerTurn(playerId)) {
             return false;
         }
 
@@ -77,7 +69,7 @@ public class GameModel {
         } else {
             return false;
         }
-        
+
         remainingMoves--;
 
         endConditions();
@@ -98,7 +90,6 @@ public class GameModel {
                 return row == SIZE-1 && col == SIZE-1;
             }
         }
-
         return isReachable(row, col);
     }
 
@@ -108,7 +99,6 @@ public class GameModel {
         } else if (!isXTurn && oFirstMove && oCount == 0) {
             return true;
         }
-
         return false;
     }
 
@@ -116,7 +106,6 @@ public class GameModel {
         if (hasAdjacentAlly(row, col)) {
             return true;
         }
-
         boolean[][] visited = new boolean[SIZE][SIZE];
         return isReachableThroughDead(row, col, visited);
     }
@@ -153,7 +142,6 @@ public class GameModel {
 
                 if (newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE
                         && !visited[newRow][newCol]) {
-
                     CellState deadEnemy = isXTurn ? CellState.O_DEAD : CellState.X_DEAD;
                     if (board[newRow][newCol] == deadEnemy) {
                         visited[newRow][newCol] = true;
@@ -169,7 +157,8 @@ public class GameModel {
 
     private boolean isKillable(int row, int col) {
         CellState target = board[row][col];
-        return (isXTurn && target == CellState.O_ALIVE) || (!isXTurn && target == CellState.X_ALIVE);
+        return (isXTurn && target == CellState.O_ALIVE) ||
+                (!isXTurn && target == CellState.X_ALIVE);
     }
 
     private boolean hasAvailableMoves() {
@@ -180,7 +169,7 @@ public class GameModel {
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 if ((board[row][col] == CellState.EMPTY ||
-                        (board[row][col] == (isXTurn ? CellState.O_ALIVE : CellState.X_ALIVE)))
+                        board[row][col] == (isXTurn ? CellState.O_ALIVE : CellState.X_ALIVE))
                         && isReachable(row, col)) {
                     return true;
                 }
@@ -199,45 +188,81 @@ public class GameModel {
     }
 
     private void endConditions() {
-        // проверка доступных ходов у себя
         if (!hasAvailableMoves()) {
-            gameState = GameState.FINISHED;
-            winner = !isXTurn;
+            status = GameStatus.FINISHED;
+            winner = !isXTurn ? "X" : "O";
             return;
         }
 
-        // проверка доступных ходов у оппонента
         isXTurn = !isXTurn;
         if (!hasAvailableMoves()) {
-            gameState = GameState.FINISHED;
+            status = GameStatus.FINISHED;
             isXTurn = !isXTurn;
-            winner = isXTurn;
+            winner = isXTurn ? "X" : "O";
             return;
         }
         isXTurn = !isXTurn;
 
-        // проверка кол-ва занятых оппонентом клеток
         if (!enemyIsAlive()) {
-            gameState = GameState.FINISHED;
-            winner = isXTurn;
+            status = GameStatus.FINISHED;
+            winner = isXTurn ? "X" : "O";
         }
     }
 
-    public void surrender() {
-        gameState = GameState.FINISHED;
-        winner = !isXTurn;
+    private boolean isPlayerTurn(int playerId) {
+        return (playerId == 1 && isXTurn) || (playerId == 2 && !isXTurn);
     }
 
-    public String getWinner() {
-        return winner ? "X" : "O";
+    @Override
+    public synchronized void confirmReady(int playerId) throws RemoteException {
+        if (status == GameStatus.READY || status == GameStatus.FINISHED) {
+            playerReady[playerId - 1] = true;
+
+            if (playerReady[0] && playerReady[1]) {
+                reset();
+                status = GameStatus.PLAYING;
+                playerReady[0] = false;
+                playerReady[1] = false;
+            }
+        }
     }
 
-    public CellState getCellState(int row, int col) { return board[row][col]; }
-    public boolean isXTurn() { return isXTurn; }
-    public int getRemainingMoves() { return remainingMoves; }
-    public static int getSize() { return SIZE; }
+    @Override
+    public synchronized int registerPlayer() throws RemoteException {
+        for (int i = 0; i < 2; i++) {
+            if (!playerConnected[i]) {
+                playerConnected[i] = true;
+                connectedPlayers++;
+                if (connectedPlayers == 2) {
+                    status = GameStatus.READY;
+                }
+                return i + 1;
+            }
+        }
 
-    public boolean isGameIdle() { return gameState == GameState.INITIAL; }
-    public boolean isGameStarted() { return gameState == GameState.PLAYING; }
-    public boolean isGameEnded() { return gameState == GameState.FINISHED; }
+        return -1;
+    }
+
+    @Override
+    public synchronized void surrender(int playerId) throws RemoteException {
+        if (status == GameStatus.PLAYING) {
+            status = GameStatus.FINISHED;
+            winner = playerId == 1 ? "O" : "X";
+        }
+    }
+
+    @Override
+    public synchronized void disconnectPlayer(int playerId) throws RemoteException {
+        if (playerConnected[playerId - 1]) {
+            playerConnected[playerId - 1] = false;
+            connectedPlayers--;
+            status = GameStatus.WAITING_PLAYERS;
+            reset();
+        }
+    }
+
+    @Override
+    public GameState getGameState() throws RemoteException {
+        return new GameState(board, isXTurn, remainingMoves, status, winner);
+    }
 }

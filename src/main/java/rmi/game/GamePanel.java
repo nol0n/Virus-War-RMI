@@ -18,7 +18,6 @@ public class GamePanel extends JPanel {
         this.model = model;
         setLayout(new BorderLayout());
 
-        // Игровая область
         gameArea = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -35,7 +34,6 @@ public class GamePanel extends JPanel {
             }
         });
 
-        // Кнопки управления
         buttonArea = new JPanel();
         controlButton = new JButton("Ожидание игроков...");
         controlButton.addActionListener(e -> handleControlButton());
@@ -52,7 +50,7 @@ public class GamePanel extends JPanel {
     }
 
     private void handleClick(int x, int y) {
-        if (!model.isGameReady() || !model.isMyTurn()) {
+        if (!model.isMyTurn()) {
             return;
         }
 
@@ -68,13 +66,10 @@ public class GamePanel extends JPanel {
 
     private void handleControlButton() {
         GameStatus status = model.getGameStatus();
-        if (status == GameStatus.READY) {
+        if (status == GameStatus.READY || status == GameStatus.FINISHED) {
             model.confirmReady();
             controlButton.setEnabled(false);
             controlButton.setText("Ожидание второго игрока...");
-            refresh();
-        } else if (status == GameStatus.FINISHED) {
-            model.resetGame();
             refresh();
         }
     }
@@ -85,8 +80,8 @@ public class GamePanel extends JPanel {
     }
 
     public void refresh() {
-        GameStatus status = model.getGameStatus();
-        switch (status) {
+        model.updateState();
+        switch (model.getGameStatus()) {
             case WAITING_PLAYERS:
                 controlButton.setText("Ожидание игроков...");
                 controlButton.setEnabled(false);
@@ -107,12 +102,14 @@ public class GamePanel extends JPanel {
                 } else {
                     controlButton.setText("Ход противника");
                 }
+                model.setVictoryMessageShown(false);
                 controlButton.setEnabled(false);
                 surrenderButton.setEnabled(true);
                 break;
 
             case FINISHED:
                 if (!model.isVictoryMessageShown()) {
+                    model.setVictoryMessageShown(true);
                     String winner = model.getWinner();
                     String message = winner.equals(model.getPlayerId() == 1 ? "X" : "O") ?
                             "Вы победили!" : "Вы проиграли";
@@ -120,7 +117,6 @@ public class GamePanel extends JPanel {
                         JOptionPane.showMessageDialog(this, message, "Конец игры",
                                 JOptionPane.INFORMATION_MESSAGE);
                     });
-                    model.setVictoryMessageShown(true);
                 }
                 controlButton.setText("Начать новую игру");
                 controlButton.setEnabled(true);
@@ -132,7 +128,7 @@ public class GamePanel extends JPanel {
 
     private void drawGrid(Graphics g) {
         g.setColor(Color.BLACK);
-        for (int i = 0; i <= GameModel.getSize(); i++) {
+        for (int i = 1; i <= GameModel.getSize() - 1; i++) {
             g.drawLine(i * CELL_SIZE, 0,
                     i * CELL_SIZE, GameModel.getSize() * CELL_SIZE);
             g.drawLine(0, i * CELL_SIZE,
@@ -152,7 +148,6 @@ public class GamePanel extends JPanel {
     private void drawCell(Graphics g, int row, int col, CellState state) {
         int x = col * CELL_SIZE;
         int y = row * CELL_SIZE;
-        int padding = 10;
 
         switch (state) {
             case X_ALIVE:

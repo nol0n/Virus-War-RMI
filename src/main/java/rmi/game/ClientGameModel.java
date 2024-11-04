@@ -1,7 +1,6 @@
 package rmi.game;
 
 import rmi.net.RemoteVirusGame;
-import rmi.game.GameState;
 import java.rmi.RemoteException;
 
 public class ClientGameModel {
@@ -9,7 +8,6 @@ public class ClientGameModel {
     private final int playerId;
     private GameState currentState;
     private boolean victoryMessageShown = false;
-    private GameStatus lastStatus = null;
 
     public ClientGameModel(RemoteVirusGame server, int playerId) {
         this.server = server;
@@ -17,31 +15,12 @@ public class ClientGameModel {
         updateState();
     }
 
-    public void startGame() {
-        try {
-            server.startGame();
-            updateState();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void confirmReady() {
         try {
             server.confirmReady(playerId);
             updateState();
         } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void resetGame() {
-        try {
-            server.resetGame(playerId);
-            // НЕ сбрасываем тут victoryMessageShown
-            updateState();
-        } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -53,7 +32,7 @@ public class ClientGameModel {
             }
             return success;
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return false;
         }
     }
@@ -63,7 +42,7 @@ public class ClientGameModel {
             server.surrender(playerId);
             updateState();
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -71,28 +50,18 @@ public class ClientGameModel {
         try {
             server.disconnectPlayer(playerId);
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
     public void updateState() {
         try {
-            GameState newState = server.getGameState();
-            GameStatus newStatus = newState.getStatus();
-
-            // Сброс флага только при изменении статуса на READY
-            if (newStatus == GameStatus.READY && lastStatus != GameStatus.READY) {
-                victoryMessageShown = false;
-            }
-
-            lastStatus = newStatus;
-            currentState = newState;
+            currentState = server.getGameState();;
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
-    // Геттеры для UI
     public CellState[][] getBoard() {
         return currentState.getBoard();
     }
@@ -100,15 +69,6 @@ public class ClientGameModel {
     public boolean isMyTurn() {
         return (playerId == 1 && currentState.isXTurn()) ||
                 (playerId == 2 && !currentState.isXTurn());
-    }
-
-    public boolean isGameReady() {
-        try {
-            return server.isGameReady();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-            return false;
-        }
     }
 
     public GameStatus getGameStatus() {

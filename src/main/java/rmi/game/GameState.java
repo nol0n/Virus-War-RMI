@@ -3,7 +3,7 @@ package rmi.game;
 import java.io.Serializable;
 
 public class GameState implements Serializable {
-    private static final int BOARD_SIZE = 10;
+    private static final int SIZE = 10;
 
     private final CellState[][] board;
     private final boolean isXTurn;
@@ -20,16 +20,14 @@ public class GameState implements Serializable {
         this.winner = winner;
     }
 
-    // Безопасное копирование доски
     private CellState[][] copyBoard(CellState[][] original) {
-        CellState[][] copy = new CellState[BOARD_SIZE][BOARD_SIZE];
-        for (int i = 0; i < BOARD_SIZE; i++) {
-            System.arraycopy(original[i], 0, copy[i], 0, BOARD_SIZE);
+        CellState[][] copy = new CellState[SIZE][SIZE];
+        for (int i = 0; i < SIZE; i++) {
+            System.arraycopy(original[i], 0, copy[i], 0, SIZE);
         }
         return copy;
     }
 
-    // Геттеры
     public CellState[][] getBoard() {
         return copyBoard(board);
     }
