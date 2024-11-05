@@ -1,24 +1,26 @@
-package rmi.net;
+package soap.net;
 
-import rmi.game.ClientGameModel;
-import rmi.game.GameFrame;
+import soap.game.ClientGameModel;
+import soap.game.GameFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
+import javax.xml.namespace.QName;
+import javax.xml.ws.Service;
+import java.net.URL;
 
 public class VirusGameClient {
     public static final int port = 8080;
-    static final String host = "localhost";
-    static final String name = "VirusServer";
+    static final String name = "VirusGame";
 
     private ClientGameModel gameModel;
     private GameFrame gameFrame;
 
     public void start() {
         try {
-            Registry registry = LocateRegistry.getRegistry(host, port);
-            RemoteVirusGame server = (RemoteVirusGame) registry.lookup(name);
+            URL url = new URL(String.format("http://localhost:%d/%s&wsdl", port, name));
+            QName qname = new QName("http://game.soap/", "ServerGameModelService");
+            Service service = Service.create(url, qname);
+            VirusGameService server = service.getPort(VirusGameService.class);
 
             int playerId = server.registerPlayer();
             if (playerId == -1) {
@@ -28,7 +30,6 @@ public class VirusGameClient {
 
             gameModel = new ClientGameModel(server, playerId);
             SwingUtilities.invokeLater(() -> gameFrame = new GameFrame(gameModel));
-
             startUpdateThread();
 
         } catch (Exception e) {
