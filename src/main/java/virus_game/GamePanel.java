@@ -137,13 +137,11 @@ public class GamePanel extends JPanel {
         int padding = 10;
         g.setColor(color);
 
-        // Рисуем X
         g.drawLine(x + padding, y + padding,
                 x + CELL_SIZE - padding, y + CELL_SIZE - padding);
         g.drawLine(x + CELL_SIZE - padding, y + padding,
                 x + padding, y + CELL_SIZE - padding);
 
-        // Если X мертвый, рисуем вокруг него кружок
         if (isDead) {
             g.drawOval(x + padding/2, y + padding/2,
                     CELL_SIZE - padding, CELL_SIZE - padding);
@@ -154,7 +152,6 @@ public class GamePanel extends JPanel {
         int padding = 10;
         g.setColor(color);
 
-        // Рисуем O
         if (isDead) {
             g.fillOval(x + padding, y + padding,
                     CELL_SIZE - 2*padding, CELL_SIZE - 2*padding);
